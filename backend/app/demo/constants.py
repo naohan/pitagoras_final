@@ -1,0 +1,10 @@
+HACKATHON_EMAIL = "demo@pitagoras.hack"
+HACKATHON_PASSWORD = "Pitagoras2026"
+HACKATHON_FULL_NAME = "Noe Demo Hackathon"
+
+DIAGNOSTIC_TEMPLATE_NAME = "Simulacro Ingeniería de Sistemas"
+ORDINARIO_TEMPLATE_NAME = "UNSA Ordinario 2026-I — Ingenierías"
+
+DIAGNOSTIC_WRONG_ORDERS = {2, 4}
+ORDINARIO_WRONG_ORDERS = {2, 5, 8, 11, 14, 17, 19}
+ORDINARIO_SAVED_ORDERS = {5, 11, 14}

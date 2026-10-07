@@ -1,0 +1,16 @@
+export '../../features/agents/providers/agents_provider.dart';
+export '../../features/catalog/providers/catalog_provider.dart';
+export '../../features/auth/providers/auth_provider.dart';
+export '../../features/exam/providers/exam_provider.dart';
+export '../../features/preparation/providers/preparation_provider.dart';
+export '../../features/results/providers/diagnostic_provider.dart';
+export '../../features/results/providers/results_provider.dart';
+export '../../features/study_activity/providers/study_activity_provider.dart';
+export '../../features/study_material/providers/study_material_provider.dart';
+export '../../features/study_techniques/providers/study_techniques_provider.dart';
+export '../../features/study_tools/providers/study_tools_provider.dart';
+export '../../features/tutor/providers/tutor_provider.dart';
+export 'api_client_provider.dart';
+export 'repository_providers.dart';
+export 'router_provider.dart';
+export 'session_provider.dart';

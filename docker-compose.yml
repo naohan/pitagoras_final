@@ -1,0 +1,31 @@
+# MySQL local para desarrollo (puerto 3307 para no chocar con otra instancia en 3306).
+#
+#   docker compose up -d
+#
+# Luego en backend/.env:
+#   DATABASE_URL=mysql+pymysql://pitagoras:pitagoras@localhost:3307/pitagoras
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: pitagoras-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: pitagoras
+      MYSQL_USER: pitagoras
+      MYSQL_PASSWORD: pitagoras
+    ports:
+      - "3307:3306"
+    volumes:
+      - pitagoras_mysql_data:/var/lib/mysql
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "pitagoras", "-ppitagoras"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+volumes:
+  pitagoras_mysql_data:

@@ -1,0 +1,80 @@
+# --- Secretos y entorno local (nunca subir) ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials.json
+secrets.json
+
+# --- Python / Backend ---
+**/__pycache__/
+**/*.py[cod]
+**/*$py.class
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+**/.coverage
+**/htmlcov/
+**/.venv/
+**/venv/
+**/env/
+**/*.egg-info/
+**/.eggs/
+**/dist/
+**/build/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Datos locales (ChromaDB, uploads, etc.)
+data/
+backend/data/
+**/*.chroma
+**/chroma/
+
+# --- Flutter / Frontend ---
+frontend/.dart_tool/
+frontend/.flutter-plugins
+frontend/.flutter-plugins-dependencies
+frontend/.pub-cache/
+frontend/.pub/
+frontend/build/
+frontend/**/doc/api/
+frontend/**/ios/Flutter/.last_build_id
+frontend/**/ios/Flutter/ephemeral/
+frontend/**/ios/Pods/
+frontend/**/android/.gradle/
+frontend/**/android/app/debug/
+frontend/**/android/app/profile/
+frontend/**/android/app/release/
+frontend/**/android/local.properties
+frontend/**/android/key.properties
+frontend/**/*.jks
+frontend/app.*.symbols
+frontend/app.*.map.json
+
+# --- IDEs y editores ---
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+*.swp
+*.swo
+*~
+.history/
+
+# --- Sistema operativo ---
+.DS_Store
+Thumbs.db
+Desktop.ini
+ehthumbs.db
+
+# --- Docker / logs / archivo local ---
+*.log
+backend/logs/
+_archive/
+docker-compose.override.yml
+
+# --- Cursor / agentes locales (opcional) ---
+.cursor/

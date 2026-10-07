@@ -1,0 +1,44 @@
+# Secretos (nunca subir)
+.env
+.env.*
+!.env.example
+
+# Entorno virtual
+.venv/
+venv/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+dist/
+build/
+pip-log.txt
+
+# Tests y cobertura
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Datos locales (ChromaDB, vectores, uploads)
+data/
+*.chroma
+
+# Logs
+*.log
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+
+# Sistema
+.DS_Store
+Thumbs.db
