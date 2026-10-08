@@ -43,6 +43,7 @@ class OfflineData {
   }) {
     return AuthSession(
       accessToken: accessToken,
+      refreshToken: 'offline-demo-refresh',
       tokenType: 'bearer',
       expiresIn: 86400,
       user: AuthUser(

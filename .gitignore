@@ -26,9 +26,10 @@ secrets.json
 pip-log.txt
 pip-delete-this-directory.txt
 
-# Datos locales (ChromaDB, uploads, etc.)
-data/
+# Datos locales (ChromaDB, uploads, etc.) — no ignorar frontend/lib/data (código fuente)
+/data/
 backend/data/
+docs/data/
 **/*.chroma
 **/chroma/
 

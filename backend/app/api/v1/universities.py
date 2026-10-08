@@ -2,8 +2,10 @@ from fastapi import APIRouter, Depends, Response, status
 from sqlalchemy.orm import Session
 
 from app.api.helpers import apply_update, not_found
-from app.core.dependencies import get_db
+from app.auth.auth_service import AuthUser
+from app.core.dependencies import get_current_user, get_db, require_roles
 from app.models.academic import University
+from app.models.enums import UserRole
 from app.repositories.university_repository import UniversityRepository
 from app.schemas.university import UniversityCreate, UniversityResponse, UniversityUpdate
 
@@ -17,6 +19,7 @@ def list_universities(
     active_only: bool = False,
     country: str | None = None,
     db: Session = Depends(get_db),
+    _: AuthUser = Depends(get_current_user),
 ) -> list[University]:
     repo = UniversityRepository(db)
     if country:
@@ -28,6 +31,7 @@ def list_universities(
 def get_university(
     university_id: int,
     db: Session = Depends(get_db),
+    _: AuthUser = Depends(get_current_user),
 ) -> University:
     entity = UniversityRepository(db).get_by_id(university_id)
     if entity is None:
@@ -39,6 +43,7 @@ def get_university(
 def create_university(
     payload: UniversityCreate,
     db: Session = Depends(get_db),
+    _: AuthUser = Depends(require_roles(UserRole.ADMIN)),
 ) -> University:
     repo = UniversityRepository(db)
     entity = University(**payload.model_dump())
@@ -53,6 +58,7 @@ def update_university(
     university_id: int,
     payload: UniversityUpdate,
     db: Session = Depends(get_db),
+    _: AuthUser = Depends(require_roles(UserRole.ADMIN)),
 ) -> University:
     repo = UniversityRepository(db)
     entity = repo.get_by_id(university_id)
@@ -68,6 +74,7 @@ def update_university(
 def delete_university(
     university_id: int,
     db: Session = Depends(get_db),
+    _: AuthUser = Depends(require_roles(UserRole.ADMIN)),
 ) -> Response:
     repo = UniversityRepository(db)
     if not repo.delete_by_id(university_id):

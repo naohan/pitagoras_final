@@ -1,8 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.core.dependencies import get_db
+from app.auth.auth_service import AuthUser
+from app.core.dependencies import get_current_user, get_db, get_owned_student_exam
 from app.diagnostics.exceptions import DiagnosticError
+from app.models.exam import StudentExam
 from app.recommendations.exceptions import RecommendationError
 from app.recommendations.recommendation_service import RecommendationService, StudyPlan
 from app.schemas.recommendation import (
@@ -49,11 +51,11 @@ def _to_plan_response(plan: StudyPlan) -> StudyPlanResponse:
     summary="Plan de estudio basado en diagnóstico y reglas",
 )
 def get_study_plan(
-    student_exam_id: int,
+    owned: StudentExam = Depends(get_owned_student_exam),
     service: RecommendationService = Depends(_recommendation_service),
 ) -> StudyPlanResponse:
     try:
-        plan = service.get_study_plan(student_exam_id)
+        plan = service.get_study_plan(owned.id)
         return _to_plan_response(plan)
     except (DiagnosticError, RecommendationError) as exc:
         raise _handle_errors(exc) from exc
@@ -66,5 +68,6 @@ def get_study_plan(
 )
 def list_recommendation_rules(
     service: RecommendationService = Depends(_recommendation_service),
+    _: AuthUser = Depends(get_current_user),
 ) -> list[RecommendationRuleResponse]:
     return [RecommendationRuleResponse.model_validate(r) for r in service.list_rules()]

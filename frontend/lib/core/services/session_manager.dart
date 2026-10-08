@@ -22,6 +22,17 @@ class SessionManager {
   Future<void> saveAccessToken(String token) =>
       _storage.write(key: StorageKeys.accessToken, value: token);
 
+  Future<String?> getRefreshToken() =>
+      _storage.read(key: StorageKeys.refreshToken);
+
+  Future<void> saveRefreshToken(String? token) async {
+    if (token == null || token.isEmpty) {
+      await _storage.delete(key: StorageKeys.refreshToken);
+      return;
+    }
+    await _storage.write(key: StorageKeys.refreshToken, value: token);
+  }
+
   Future<String?> getTokenType() => _storage.read(key: StorageKeys.tokenType);
 
   Future<void> saveTokenType(String tokenType) =>
@@ -349,6 +360,7 @@ class SessionManager {
 
   Future<void> clearSession() async {
     await _storage.delete(key: StorageKeys.accessToken);
+    await _storage.delete(key: StorageKeys.refreshToken);
     await _storage.delete(key: StorageKeys.tokenType);
     await _storage.delete(key: StorageKeys.studentId);
     await _storage.delete(key: StorageKeys.userEmail);

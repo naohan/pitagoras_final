@@ -1,30 +1,38 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.core.dependencies import get_db
+from app.auth.auth_service import AuthUser
+from app.core.dependencies import (
+    get_current_student_id,
+    get_current_user,
+    get_db,
+    get_owned_student_exam,
+    require_roles,
+)
 from app.exams.exam_engine_service import ExamEngineService
 from app.exams.exceptions import ExamEngineError
-from app.models.exam import ExamTemplate, StudentExam
 from app.models.answer import StudentAnswer
+from app.models.enums import UserRole
+from app.models.exam import ExamTemplate, StudentExam
 from app.repositories.exam_template_repository import ExamTemplateRepository
 from app.repositories.student_exam_repository import StudentExamRepository
 from app.schemas.exam import (
+    BreakdownItemResponse,
+    ExamResultResponse,
     ExamTemplateCreate,
     ExamTemplateResponse,
     ExamTimeStatusResponse,
     QuestionForExam,
     QuestionOptionForExam,
+    QuestionOptionReview,
+    SaveAnswerRequest,
+    SavedAnswerItemResponse,
     StartAdaptiveStudentExamRequest,
     StartStudentExamRequest,
     StudentAnswerResponse,
     StudentExamResponse,
     StudentExamResultResponse,
     SubmitAnswerRequest,
-    SaveAnswerRequest,
-    SavedAnswerItemResponse,
-    QuestionOptionReview,
-    BreakdownItemResponse,
-    ExamResultResponse,
 )
 
 router = APIRouter(tags=["Exam Engine"])
@@ -190,6 +198,7 @@ def create_exam_template(
     payload: ExamTemplateCreate,
     db: Session = Depends(get_db),
     engine: ExamEngineService = Depends(_engine),
+    _: AuthUser = Depends(require_roles(UserRole.ADMIN)),
 ) -> ExamTemplate:
     try:
         template = engine.create_exam_template(
@@ -219,6 +228,7 @@ def list_exam_templates(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
+    _: AuthUser = Depends(get_current_user),
 ) -> list[ExamTemplate]:
     repo = ExamTemplateRepository(db)
     if career_id is not None:
@@ -251,6 +261,7 @@ def list_exam_templates(
 def get_exam_template(
     template_id: int,
     db: Session = Depends(get_db),
+    _: AuthUser = Depends(get_current_user),
 ) -> ExamTemplate:
     template = ExamTemplateRepository(db).get_with_questions(template_id)
     if template is None:
@@ -268,10 +279,12 @@ def start_student_exam(
     payload: StartStudentExamRequest,
     db: Session = Depends(get_db),
     engine: ExamEngineService = Depends(_engine),
+    student_id: int = Depends(get_current_student_id),
 ) -> StudentExamResponse:
+    # Ignora payload.student_id: solo se usa el estudiante del JWT.
     try:
         student_exam = engine.start_student_exam(
-            student_id=payload.student_id,
+            student_id=student_id,
             exam_template_id=payload.exam_template_id,
         )
         db.commit()
@@ -291,10 +304,12 @@ def start_adaptive_student_exam(
     payload: StartAdaptiveStudentExamRequest,
     db: Session = Depends(get_db),
     engine: ExamEngineService = Depends(_engine),
+    student_id: int = Depends(get_current_student_id),
 ) -> StudentExamResponse:
+    # Ignora payload.student_id: solo se usa el estudiante del JWT.
     try:
         student_exam = engine.start_adaptive_simulacro(
-            student_id=payload.student_id,
+            student_id=student_id,
             based_on_student_exam_id=payload.based_on_student_exam_id,
             question_count=payload.question_count,
         )
@@ -311,10 +326,10 @@ def start_adaptive_student_exam(
     summary="Obtener examen en curso o finalizado",
 )
 def get_student_exam(
-    student_exam_id: int,
+    owned: StudentExam = Depends(get_owned_student_exam),
     db: Session = Depends(get_db),
 ) -> StudentExamResponse:
-    student_exam = StudentExamRepository(db).get_with_template_and_questions(student_exam_id)
+    student_exam = StudentExamRepository(db).get_with_template_and_questions(owned.id)
     if student_exam is None:
         raise HTTPException(status_code=404, detail="Student exam not found")
     return _build_student_exam_response(student_exam)
@@ -326,12 +341,11 @@ def get_student_exam(
     summary="Consultar tiempo restante del examen",
 )
 def get_exam_time_status(
-    student_exam_id: int,
-    db: Session = Depends(get_db),
+    owned: StudentExam = Depends(get_owned_student_exam),
     engine: ExamEngineService = Depends(_engine),
 ) -> ExamTimeStatusResponse:
     try:
-        time_status = engine.get_time_status(student_exam_id)
+        time_status = engine.get_time_status(owned.id)
         return ExamTimeStatusResponse.model_validate(time_status)
     except ExamEngineError as exc:
         raise _handle_engine_error(exc) from exc
@@ -343,14 +357,14 @@ def get_exam_time_status(
     summary="Guardar respuesta del estudiante",
 )
 def submit_answer(
-    student_exam_id: int,
     payload: SubmitAnswerRequest,
+    owned: StudentExam = Depends(get_owned_student_exam),
     db: Session = Depends(get_db),
     engine: ExamEngineService = Depends(_engine),
 ) -> StudentAnswerResponse:
     try:
         answer = engine.submit_answer(
-            student_exam_id=student_exam_id,
+            student_exam_id=owned.id,
             question_id=payload.question_id,
             selected_option_id=payload.selected_option_id,
             time_seconds=payload.time_seconds,
@@ -368,15 +382,15 @@ def submit_answer(
     summary="Marcar o desmarcar pregunta para repasar",
 )
 def toggle_save_answer(
-    student_exam_id: int,
     question_id: int,
     payload: SaveAnswerRequest,
+    owned: StudentExam = Depends(get_owned_student_exam),
     db: Session = Depends(get_db),
     engine: ExamEngineService = Depends(_engine),
 ) -> StudentAnswerResponse:
     try:
         answer = engine.toggle_save_answer(
-            student_exam_id=student_exam_id,
+            student_exam_id=owned.id,
             question_id=question_id,
             is_saved=payload.is_saved,
         )
@@ -388,18 +402,43 @@ def toggle_save_answer(
 
 
 @router.get(
-    "/students/{student_id}/saved-answers",
+    "/students/me/saved-answers",
     response_model=list[SavedAnswerItemResponse],
-    summary="Listar preguntas guardadas del estudiante",
+    summary="Listar preguntas guardadas del estudiante autenticado",
 )
-def list_saved_answers(
-    student_id: int,
+def list_my_saved_answers(
     correctness: str = "all",
-    db: Session = Depends(get_db),
+    student_id: int = Depends(get_current_student_id),
     engine: ExamEngineService = Depends(_engine),
 ) -> list[SavedAnswerItemResponse]:
     try:
         answers = engine.list_saved_answers(student_id, correctness=correctness)
+        return [_build_saved_answer_item(answer) for answer in answers]
+    except ExamEngineError as exc:
+        raise _handle_engine_error(exc) from exc
+
+
+@router.get(
+    "/students/{student_id}/saved-answers",
+    response_model=list[SavedAnswerItemResponse],
+    summary="Listar preguntas guardadas (compat: solo el propio student_id)",
+)
+def list_saved_answers(
+    student_id: int,
+    correctness: str = "all",
+    current_student_id: int = Depends(get_current_student_id),
+    engine: ExamEngineService = Depends(_engine),
+) -> list[SavedAnswerItemResponse]:
+    if student_id != current_student_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "code": "forbidden",
+                "message": "You do not have access to another student's saved answers.",
+            },
+        )
+    try:
+        answers = engine.list_saved_answers(current_student_id, correctness=correctness)
         return [_build_saved_answer_item(answer) for answer in answers]
     except ExamEngineError as exc:
         raise _handle_engine_error(exc) from exc
@@ -411,13 +450,12 @@ def list_saved_answers(
     summary="Revisión completa de respuestas post-examen",
 )
 def get_exam_review(
-    student_exam_id: int,
+    owned: StudentExam = Depends(get_owned_student_exam),
     correctness: str = "all",
-    db: Session = Depends(get_db),
     engine: ExamEngineService = Depends(_engine),
 ) -> list[SavedAnswerItemResponse]:
     try:
-        items = engine.get_exam_review(student_exam_id, correctness=correctness)
+        items = engine.get_exam_review(owned.id, correctness=correctness)
         return [
             _build_saved_answer_item(answer, display_order=display_order)
             for answer, display_order in items
@@ -432,12 +470,12 @@ def get_exam_review(
     summary="Finalizar examen, calificar y guardar resultados",
 )
 def finish_student_exam(
-    student_exam_id: int,
+    owned: StudentExam = Depends(get_owned_student_exam),
     db: Session = Depends(get_db),
     engine: ExamEngineService = Depends(_engine),
 ) -> StudentExamResultResponse:
     try:
-        student_exam = engine.finish_exam(student_exam_id)
+        student_exam = engine.finish_exam(owned.id)
         db.commit()
         return _build_result_response(student_exam)
     except ExamEngineError as exc:
@@ -451,10 +489,10 @@ def finish_student_exam(
     summary="Obtener resultados del examen",
 )
 def get_student_exam_results(
-    student_exam_id: int,
+    owned: StudentExam = Depends(get_owned_student_exam),
     db: Session = Depends(get_db),
 ) -> StudentExamResultResponse:
-    student_exam = StudentExamRepository(db).get_with_result(student_exam_id)
+    student_exam = StudentExamRepository(db).get_with_result(owned.id)
     if student_exam is None:
         raise HTTPException(status_code=404, detail="Student exam not found")
     if student_exam.result is None:

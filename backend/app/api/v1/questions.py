@@ -2,7 +2,9 @@ from fastapi import APIRouter, Depends, Response, status
 from sqlalchemy.orm import Session
 
 from app.api.helpers import apply_update, not_found
-from app.core.dependencies import get_db
+from app.auth.auth_service import AuthUser
+from app.core.dependencies import get_current_user, get_db, require_roles
+from app.models.enums import UserRole
 from app.models.question import Question, QuestionOption
 from app.repositories.question_repository import QuestionRepository
 from app.schemas.question import QuestionCreate, QuestionResponse, QuestionUpdate
@@ -34,6 +36,7 @@ def list_questions(
     difficulty: int | None = None,
     with_options: bool = False,
     db: Session = Depends(get_db),
+    _: AuthUser = Depends(get_current_user),
 ) -> list[Question]:
     repo = QuestionRepository(db)
     if subtopic_id is not None:
@@ -70,6 +73,7 @@ def list_questions(
 def get_question(
     question_id: int,
     db: Session = Depends(get_db),
+    _: AuthUser = Depends(get_current_user),
 ) -> Question:
     entity = QuestionRepository(db).get_by_id_with_options(question_id)
     if entity is None:
@@ -81,6 +85,7 @@ def get_question(
 def create_question(
     payload: QuestionCreate,
     db: Session = Depends(get_db),
+    _: AuthUser = Depends(require_roles(UserRole.ADMIN)),
 ) -> Question:
     repo = QuestionRepository(db)
     entity = _build_question(payload)
@@ -97,6 +102,7 @@ def update_question(
     question_id: int,
     payload: QuestionUpdate,
     db: Session = Depends(get_db),
+    _: AuthUser = Depends(require_roles(UserRole.ADMIN)),
 ) -> Question:
     repo = QuestionRepository(db)
     entity = repo.get_by_id_with_options(question_id)
@@ -120,6 +126,7 @@ def update_question(
 def delete_question(
     question_id: int,
     db: Session = Depends(get_db),
+    _: AuthUser = Depends(require_roles(UserRole.ADMIN)),
 ) -> Response:
     repo = QuestionRepository(db)
     if not repo.delete_by_id(question_id):

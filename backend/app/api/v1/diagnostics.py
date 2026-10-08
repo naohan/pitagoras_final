@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.core.dependencies import get_db
+from app.core.dependencies import get_db, get_owned_student_exam
 from app.diagnostics.diagnostic_service import DiagnosticReport, DiagnosticService
 from app.diagnostics.exceptions import DiagnosticError
+from app.models.exam import StudentExam
 from app.schemas.diagnostic import DiagnosticItemResponse, DiagnosticReportResponse
 
 router = APIRouter(prefix="/diagnostics", tags=["Diagnostics"])
@@ -43,11 +44,11 @@ def _to_response(report: DiagnosticReport) -> DiagnosticReportResponse:
     summary="Obtener diagnóstico académico de un examen",
 )
 def get_exam_diagnostic(
-    student_exam_id: int,
+    owned: StudentExam = Depends(get_owned_student_exam),
     service: DiagnosticService = Depends(_diagnostic_service),
 ) -> DiagnosticReportResponse:
     try:
-        report = service.get_diagnostic(student_exam_id)
+        report = service.get_diagnostic(owned.id)
         return _to_response(report)
     except DiagnosticError as exc:
         raise _handle_diagnostic_error(exc) from exc
@@ -59,11 +60,11 @@ def get_exam_diagnostic(
     summary="Diagnóstico por área",
 )
 def get_diagnostic_by_areas(
-    student_exam_id: int,
+    owned: StudentExam = Depends(get_owned_student_exam),
     service: DiagnosticService = Depends(_diagnostic_service),
 ) -> list[DiagnosticItemResponse]:
     try:
-        report = service.get_diagnostic(student_exam_id)
+        report = service.get_diagnostic(owned.id)
         return [DiagnosticItemResponse.model_validate(i) for i in report.areas]
     except DiagnosticError as exc:
         raise _handle_diagnostic_error(exc) from exc
@@ -75,11 +76,11 @@ def get_diagnostic_by_areas(
     summary="Diagnóstico por componente",
 )
 def get_diagnostic_by_components(
-    student_exam_id: int,
+    owned: StudentExam = Depends(get_owned_student_exam),
     service: DiagnosticService = Depends(_diagnostic_service),
 ) -> list[DiagnosticItemResponse]:
     try:
-        report = service.get_diagnostic(student_exam_id)
+        report = service.get_diagnostic(owned.id)
         return [DiagnosticItemResponse.model_validate(i) for i in report.components]
     except DiagnosticError as exc:
         raise _handle_diagnostic_error(exc) from exc
@@ -91,11 +92,11 @@ def get_diagnostic_by_components(
     summary="Diagnóstico por tema",
 )
 def get_diagnostic_by_topics(
-    student_exam_id: int,
+    owned: StudentExam = Depends(get_owned_student_exam),
     service: DiagnosticService = Depends(_diagnostic_service),
 ) -> list[DiagnosticItemResponse]:
     try:
-        report = service.get_diagnostic(student_exam_id)
+        report = service.get_diagnostic(owned.id)
         return [DiagnosticItemResponse.model_validate(i) for i in report.topics]
     except DiagnosticError as exc:
         raise _handle_diagnostic_error(exc) from exc
@@ -107,11 +108,11 @@ def get_diagnostic_by_topics(
     summary="Diagnóstico por subtema",
 )
 def get_diagnostic_by_subtopics(
-    student_exam_id: int,
+    owned: StudentExam = Depends(get_owned_student_exam),
     service: DiagnosticService = Depends(_diagnostic_service),
 ) -> list[DiagnosticItemResponse]:
     try:
-        report = service.get_diagnostic(student_exam_id)
+        report = service.get_diagnostic(owned.id)
         return [DiagnosticItemResponse.model_validate(i) for i in report.subtopics]
     except DiagnosticError as exc:
         raise _handle_diagnostic_error(exc) from exc

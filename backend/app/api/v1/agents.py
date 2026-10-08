@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.agents.exceptions import TutorError
 from app.agents.types import AgentResponse
-from app.core.dependencies import get_db
+from app.core.dependencies import assert_student_exam_owner, get_current_student_id, get_db
 from app.diagnostics.exceptions import DiagnosticError
 from app.orchestrator.exceptions import OrchestratorError
 from app.orchestrator.service import OrchestratorService
@@ -52,7 +52,14 @@ def _to_response(result: AgentResponse) -> AgentRunResponse:
 def analyze_diagnostic(
     payload: AgentRunRequest,
     orchestrator: OrchestratorService = Depends(get_orchestrator),
+    student_id: int = Depends(get_current_student_id),
+    db: Session = Depends(get_db),
 ) -> AgentRunResponse:
+    assert_student_exam_owner(
+        db=db,
+        student_exam_id=payload.student_exam_id,
+        student_id=student_id,
+    )
     try:
         result = orchestrator.analyze_diagnostic(payload.student_exam_id)
         return _to_response(result)
@@ -68,7 +75,14 @@ def analyze_diagnostic(
 def encourage_student(
     payload: AgentRunRequest,
     orchestrator: OrchestratorService = Depends(get_orchestrator),
+    student_id: int = Depends(get_current_student_id),
+    db: Session = Depends(get_db),
 ) -> AgentRunResponse:
+    assert_student_exam_owner(
+        db=db,
+        student_exam_id=payload.student_exam_id,
+        student_id=student_id,
+    )
     try:
         result = orchestrator.motivate_student(
             payload.student_exam_id,
@@ -87,7 +101,15 @@ def encourage_student(
 def parent_report(
     payload: AgentRunRequest,
     orchestrator: OrchestratorService = Depends(get_orchestrator),
+    student_id: int = Depends(get_current_student_id),
+    db: Session = Depends(get_db),
 ) -> AgentRunResponse:
+    # Fase 1: mismo ownership que el resto de agentes (sin vínculo padre–hijo aún).
+    assert_student_exam_owner(
+        db=db,
+        student_exam_id=payload.student_exam_id,
+        student_id=student_id,
+    )
     try:
         result = orchestrator.parent_report(payload.student_exam_id)
         return _to_response(result)

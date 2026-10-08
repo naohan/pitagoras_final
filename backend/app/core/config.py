@@ -15,7 +15,11 @@ class Settings(BaseSettings):
     # Auth / JWT
     jwt_secret_key: str = "change-me-in-production"
     jwt_algorithm: str = "HS256"
-    jwt_expire_minutes: int = 60 * 24
+    jwt_expire_minutes: int = 30
+    jwt_refresh_expire_days: int = 14
+    # Rate limit login/register (slowapi). Desactivar en tests con AUTH_RATE_LIMIT_ENABLED=false
+    auth_rate_limit_enabled: bool = True
+    auth_rate_limit: str = "10/minute"
 
     # RAG / ChromaDB
     chroma_persist_directory: str = "./data/chroma"

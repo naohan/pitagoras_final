@@ -26,3 +26,8 @@ class InactiveUserError(AuthError):
 class UserNotFoundError(AuthError):
     def __init__(self, user_id: int) -> None:
         super().__init__(f"User {user_id} not found", "user_not_found")
+
+
+class InvalidRefreshTokenError(AuthError):
+    def __init__(self) -> None:
+        super().__init__("Invalid or expired refresh token", "invalid_refresh_token")

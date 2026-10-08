@@ -17,6 +17,9 @@ class StudentExamStatus(str, enum.Enum):
 class UserRole(str, enum.Enum):
     STUDENT = "student"
     PARENT = "parent"
+    # Requiere migración 002_user_role_admin.sql en MySQL.
+    # Crear admins solo vía scripts.seed.create_admin (no hay registro público).
+    ADMIN = "admin"
 
 
 class StudyActivityType(str, enum.Enum):

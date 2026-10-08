@@ -2,8 +2,10 @@ from fastapi import APIRouter, Depends, Response, status
 from sqlalchemy.orm import Session
 
 from app.api.helpers import apply_update, not_found
-from app.core.dependencies import get_db
+from app.auth.auth_service import AuthUser
+from app.core.dependencies import get_current_user, get_db, require_roles
 from app.models.academic import Subtopic
+from app.models.enums import UserRole
 from app.repositories.subtopic_repository import SubtopicRepository
 from app.schemas.subtopic import SubtopicCreate, SubtopicResponse, SubtopicUpdate
 
@@ -17,6 +19,7 @@ def list_subtopics(
     active_only: bool = False,
     topic_id: int | None = None,
     db: Session = Depends(get_db),
+    _: AuthUser = Depends(get_current_user),
 ) -> list[Subtopic]:
     repo = SubtopicRepository(db)
     if topic_id is not None:
@@ -35,6 +38,7 @@ def list_subtopics(
 def get_subtopic(
     subtopic_id: int,
     db: Session = Depends(get_db),
+    _: AuthUser = Depends(get_current_user),
 ) -> Subtopic:
     entity = SubtopicRepository(db).get_by_id(subtopic_id)
     if entity is None:
@@ -46,6 +50,7 @@ def get_subtopic(
 def create_subtopic(
     payload: SubtopicCreate,
     db: Session = Depends(get_db),
+    _: AuthUser = Depends(require_roles(UserRole.ADMIN)),
 ) -> Subtopic:
     repo = SubtopicRepository(db)
     entity = Subtopic(**payload.model_dump())
@@ -60,6 +65,7 @@ def update_subtopic(
     subtopic_id: int,
     payload: SubtopicUpdate,
     db: Session = Depends(get_db),
+    _: AuthUser = Depends(require_roles(UserRole.ADMIN)),
 ) -> Subtopic:
     repo = SubtopicRepository(db)
     entity = repo.get_by_id(subtopic_id)
@@ -75,6 +81,7 @@ def update_subtopic(
 def delete_subtopic(
     subtopic_id: int,
     db: Session = Depends(get_db),
+    _: AuthUser = Depends(require_roles(UserRole.ADMIN)),
 ) -> Response:
     repo = SubtopicRepository(db)
     if not repo.delete_by_id(subtopic_id):

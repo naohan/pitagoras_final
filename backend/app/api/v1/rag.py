@@ -6,18 +6,19 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, s
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.dependencies import get_db, get_optional_student_id
+from app.auth.auth_service import AuthUser
+from app.core.dependencies import get_current_student_id, get_current_user, get_db
 from app.curriculum.service import CurriculumService
 from app.models.academic import AdmissionProcess, Area, Component, Subtopic, Topic
 from app.rag.exceptions import RAGError
 from app.rag.rag_service import RAGService
 from app.schemas.rag import (
+    RAGContextResponse,
     RAGDiagramNodeResponse,
     RAGDiagramRequest,
     RAGDiagramResponse,
     RAGIngestResponse,
     RAGIngestTextRequest,
-    RAGContextResponse,
     RAGSearchRequest,
     RAGSearchResponse,
     RAGSearchResultItem,
@@ -62,6 +63,7 @@ def _metadata_from_request(
 def ingest_text(
     payload: RAGIngestTextRequest,
     service: RAGService = Depends(get_rag_service),
+    student_id: int = Depends(get_current_student_id),
 ) -> RAGIngestResponse:
     try:
         metadata = _metadata_from_request(
@@ -69,6 +71,7 @@ def ingest_text(
             topic_id=payload.topic_id,
             area_id=payload.area_id,
             title=payload.title,
+            student_id=student_id,
         )
         result = service.ingest_text(
             payload.text,
@@ -97,7 +100,7 @@ async def ingest_file(
     area_id: int | None = Form(default=None),
     title: str | None = Form(default=None),
     service: RAGService = Depends(get_rag_service),
-    student_id: int | None = Depends(get_optional_student_id),
+    student_id: int = Depends(get_current_student_id),
 ) -> RAGIngestResponse:
     suffix = Path(file.filename or "").suffix.lower()
     if suffix not in {".txt", ".md", ".pdf"}:
@@ -168,6 +171,7 @@ def _friendly_rag_error(exc: RAGError) -> str:
 def search_knowledge(
     payload: RAGSearchRequest,
     service: RAGService = Depends(get_rag_service),
+    _: AuthUser = Depends(get_current_user),
 ) -> RAGSearchResponse:
     results = service.search(
         payload.query,
@@ -206,7 +210,7 @@ def _diagram_to_response(node) -> RAGDiagramNodeResponse:
 def build_material_diagram(
     payload: RAGDiagramRequest,
     service: RAGService = Depends(get_rag_service),
-    student_id: int | None = Depends(get_optional_student_id),
+    student_id: int = Depends(get_current_student_id),
 ) -> RAGDiagramResponse:
     title, nodes, chunk_count = service.build_material_diagram(
         title=payload.title,
@@ -230,7 +234,10 @@ def build_material_diagram(
     response_model=RAGStatsResponse,
     summary="Estadísticas de la colección ChromaDB",
 )
-def rag_stats(service: RAGService = Depends(get_rag_service)) -> RAGStatsResponse:
+def rag_stats(
+    service: RAGService = Depends(get_rag_service),
+    _: AuthUser = Depends(get_current_user),
+) -> RAGStatsResponse:
     data = service.stats()
     return RAGStatsResponse(**data)
 
@@ -240,7 +247,11 @@ def rag_stats(service: RAGService = Depends(get_rag_service)) -> RAGStatsRespons
     response_model=RAGContextResponse,
     summary="Subtema sugerido para indexar material según carrera",
 )
-def rag_context(career_id: int, db: Session = Depends(get_db)) -> RAGContextResponse:
+def rag_context(
+    career_id: int,
+    db: Session = Depends(get_db),
+    _: AuthUser = Depends(get_current_user),
+) -> RAGContextResponse:
     stmt_ap = (
         select(AdmissionProcess.id)
         .where(AdmissionProcess.career_id == career_id, AdmissionProcess.is_active.is_(True))

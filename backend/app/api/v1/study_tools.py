@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.core.dependencies import get_db
+from app.core.dependencies import get_db, get_owned_student_exam
 from app.diagnostics.exceptions import DiagnosticError, DiagnosticNotFoundError, ExamNotCompletedError
+from app.models.exam import StudentExam
 from app.schemas.study_tools import ConceptMapNodeResponse, FlashcardResponse
 from app.study_tools.service import ConceptMapService, FlashcardService
 
@@ -24,12 +25,12 @@ def _handle_error(exc: DiagnosticError) -> HTTPException:
     summary="Flashcards desde errores y subtemas débiles (sin IA)",
 )
 def get_flashcards(
-    student_exam_id: int,
+    owned: StudentExam = Depends(get_owned_student_exam),
     limit: int = 20,
     db: Session = Depends(get_db),
 ) -> list[FlashcardResponse]:
     try:
-        cards = FlashcardService(db).get_flashcards(student_exam_id, limit=min(limit, 50))
+        cards = FlashcardService(db).get_flashcards(owned.id, limit=min(limit, 50))
         return [
             FlashcardResponse(
                 question_id=card.question_id,
@@ -51,11 +52,11 @@ def get_flashcards(
     summary="Árbol de dominio académico con puntajes del diagnóstico (sin IA)",
 )
 def get_concept_map(
-    student_exam_id: int,
+    owned: StudentExam = Depends(get_owned_student_exam),
     db: Session = Depends(get_db),
 ) -> list[ConceptMapNodeResponse]:
     try:
-        nodes = ConceptMapService(db).get_concept_map(student_exam_id)
+        nodes = ConceptMapService(db).get_concept_map(owned.id)
         return [_to_response(node) for node in nodes]
     except DiagnosticError as exc:
         raise _handle_error(exc) from exc

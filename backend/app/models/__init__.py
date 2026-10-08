@@ -23,6 +23,7 @@ from app.models.student import Student
 from app.models.study_activity import StudyActivity
 from app.models.admission_exam_target import AdmissionExamTarget
 from app.models.curriculum import CurriculumMapping
+from app.models.refresh_token import RefreshToken
 from app.models.user import User
 
 __all__ = [
@@ -44,6 +45,7 @@ __all__ = [
     "Question",
     "QuestionLevel",
     "QuestionOption",
+    "RefreshToken",
     "Student",
     "StudentAnswer",
     "StudentExam",

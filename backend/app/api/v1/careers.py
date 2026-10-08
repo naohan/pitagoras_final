@@ -2,8 +2,10 @@ from fastapi import APIRouter, Depends, Response, status
 from sqlalchemy.orm import Session
 
 from app.api.helpers import apply_update, not_found
-from app.core.dependencies import get_db
+from app.auth.auth_service import AuthUser
+from app.core.dependencies import get_current_user, get_db, require_roles
 from app.models.academic import Career
+from app.models.enums import UserRole
 from app.preparation.service import PreparationService
 from app.repositories.career_repository import CareerRepository
 from app.schemas.career import CareerCreate, CareerResponse, CareerUpdate
@@ -26,6 +28,7 @@ def list_careers(
     university_id: int | None = None,
     admission_process_id: int | None = None,
     db: Session = Depends(get_db),
+    _: AuthUser = Depends(get_current_user),
 ) -> list[CareerResponse]:
     repo = CareerRepository(db)
     if admission_process_id is not None:
@@ -58,6 +61,7 @@ def list_careers(
 def get_career(
     career_id: int,
     db: Session = Depends(get_db),
+    _: AuthUser = Depends(get_current_user),
 ) -> CareerResponse:
     entity = CareerRepository(db).get_by_id(career_id)
     if entity is None:
@@ -69,6 +73,7 @@ def get_career(
 def create_career(
     payload: CareerCreate,
     db: Session = Depends(get_db),
+    _: AuthUser = Depends(require_roles(UserRole.ADMIN)),
 ) -> CareerResponse:
     repo = CareerRepository(db)
     entity = Career(**payload.model_dump())
@@ -83,6 +88,7 @@ def update_career(
     career_id: int,
     payload: CareerUpdate,
     db: Session = Depends(get_db),
+    _: AuthUser = Depends(require_roles(UserRole.ADMIN)),
 ) -> CareerResponse:
     repo = CareerRepository(db)
     entity = repo.get_by_id(career_id)
@@ -98,6 +104,7 @@ def update_career(
 def delete_career(
     career_id: int,
     db: Session = Depends(get_db),
+    _: AuthUser = Depends(require_roles(UserRole.ADMIN)),
 ) -> Response:
     repo = CareerRepository(db)
     if not repo.delete_by_id(career_id):

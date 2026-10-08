@@ -70,6 +70,7 @@ class AuthProvider {
 
   Future<void> _persistSession(AuthSession session) async {
     await _sessionManager.saveAccessToken(session.accessToken);
+    await _sessionManager.saveRefreshToken(session.refreshToken);
     await _sessionManager.saveTokenType(session.tokenType);
     await _sessionManager.saveStudentId(session.user.studentId);
     await _sessionManager.saveUserEmail(session.user.email);

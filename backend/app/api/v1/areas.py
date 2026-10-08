@@ -2,8 +2,10 @@ from fastapi import APIRouter, Depends, Response, status
 from sqlalchemy.orm import Session
 
 from app.api.helpers import apply_update, not_found
-from app.core.dependencies import get_db
+from app.auth.auth_service import AuthUser
+from app.core.dependencies import get_current_user, get_db, require_roles
 from app.models.academic import Area
+from app.models.enums import UserRole
 from app.repositories.area_repository import AreaRepository
 from app.schemas.area import AreaCreate, AreaResponse, AreaUpdate
 
@@ -17,6 +19,7 @@ def list_areas(
     active_only: bool = False,
     admission_process_id: int | None = None,
     db: Session = Depends(get_db),
+    _: AuthUser = Depends(get_current_user),
 ) -> list[Area]:
     repo = AreaRepository(db)
     if admission_process_id is not None:
@@ -35,6 +38,7 @@ def list_areas(
 def get_area(
     area_id: int,
     db: Session = Depends(get_db),
+    _: AuthUser = Depends(get_current_user),
 ) -> Area:
     entity = AreaRepository(db).get_by_id(area_id)
     if entity is None:
@@ -46,6 +50,7 @@ def get_area(
 def create_area(
     payload: AreaCreate,
     db: Session = Depends(get_db),
+    _: AuthUser = Depends(require_roles(UserRole.ADMIN)),
 ) -> Area:
     repo = AreaRepository(db)
     entity = Area(**payload.model_dump())
@@ -60,6 +65,7 @@ def update_area(
     area_id: int,
     payload: AreaUpdate,
     db: Session = Depends(get_db),
+    _: AuthUser = Depends(require_roles(UserRole.ADMIN)),
 ) -> Area:
     repo = AreaRepository(db)
     entity = repo.get_by_id(area_id)
@@ -75,6 +81,7 @@ def update_area(
 def delete_area(
     area_id: int,
     db: Session = Depends(get_db),
+    _: AuthUser = Depends(require_roles(UserRole.ADMIN)),
 ) -> Response:
     repo = AreaRepository(db)
     if not repo.delete_by_id(area_id):

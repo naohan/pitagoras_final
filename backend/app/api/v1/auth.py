@@ -1,10 +1,18 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.auth.auth_service import AuthService, AuthUser
 from app.auth.exceptions import AuthError
 from app.core.dependencies import get_current_user, get_db
-from app.schemas.auth import LoginRequest, RegisterRequest, TokenResponse, UserResponse
+from app.core.rate_limit import limit_auth
+from app.schemas.auth import (
+    LoginRequest,
+    LogoutRequest,
+    RefreshRequest,
+    RegisterRequest,
+    TokenResponse,
+    UserResponse,
+)
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
@@ -17,7 +25,7 @@ def _handle_auth_error(exc: AuthError) -> HTTPException:
     status_code = status.HTTP_400_BAD_REQUEST
     if exc.code == "email_already_registered":
         status_code = status.HTTP_409_CONFLICT
-    elif exc.code == "invalid_credentials":
+    elif exc.code in {"invalid_credentials", "invalid_refresh_token"}:
         status_code = status.HTTP_401_UNAUTHORIZED
     elif exc.code == "inactive_user":
         status_code = status.HTTP_403_FORBIDDEN
@@ -41,6 +49,7 @@ def _to_token_response(result) -> TokenResponse:
         access_token=result.access_token,
         token_type=result.token_type,
         expires_in=result.expires_in,
+        refresh_token=result.refresh_token,
         user=_to_user_response(result.user),
     )
 
@@ -51,7 +60,9 @@ def _to_token_response(result) -> TokenResponse:
     status_code=status.HTTP_201_CREATED,
     summary="Registrar estudiante",
 )
+@limit_auth
 def register(
+    request: Request,
     payload: RegisterRequest,
     service: AuthService = Depends(get_auth_service),
 ) -> TokenResponse:
@@ -71,7 +82,9 @@ def register(
     response_model=TokenResponse,
     summary="Iniciar sesión",
 )
+@limit_auth
 def login(
+    request: Request,
     payload: LoginRequest,
     service: AuthService = Depends(get_auth_service),
 ) -> TokenResponse:
@@ -80,6 +93,34 @@ def login(
         return _to_token_response(result)
     except AuthError as exc:
         raise _handle_auth_error(exc) from exc
+
+
+@router.post(
+    "/refresh",
+    response_model=TokenResponse,
+    summary="Renovar access token con refresh token",
+)
+def refresh(
+    payload: RefreshRequest,
+    service: AuthService = Depends(get_auth_service),
+) -> TokenResponse:
+    try:
+        result = service.refresh(raw_refresh_token=payload.refresh_token)
+        return _to_token_response(result)
+    except AuthError as exc:
+        raise _handle_auth_error(exc) from exc
+
+
+@router.post(
+    "/logout",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Revocar refresh token",
+)
+def logout(
+    payload: LogoutRequest,
+    service: AuthService = Depends(get_auth_service),
+) -> None:
+    service.revoke_refresh_token(raw_refresh_token=payload.refresh_token)
 
 
 @router.get(

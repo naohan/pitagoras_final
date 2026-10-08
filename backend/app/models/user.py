@@ -10,6 +10,7 @@ from app.models.enums import UserRole
 from app.models.mixins import TimestampMixin
 
 if TYPE_CHECKING:
+    from app.models.refresh_token import RefreshToken
     from app.models.student import Student
 
 
@@ -27,3 +28,7 @@ class User(Base, TimestampMixin):
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="1")
 
     student: Mapped[Student | None] = relationship(back_populates="user", uselist=False)
+    refresh_tokens: Mapped[list[RefreshToken]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )

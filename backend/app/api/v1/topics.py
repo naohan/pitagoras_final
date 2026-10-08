@@ -2,8 +2,10 @@ from fastapi import APIRouter, Depends, Response, status
 from sqlalchemy.orm import Session
 
 from app.api.helpers import apply_update, not_found
-from app.core.dependencies import get_db
+from app.auth.auth_service import AuthUser
+from app.core.dependencies import get_current_user, get_db, require_roles
 from app.models.academic import Topic
+from app.models.enums import UserRole
 from app.repositories.topic_repository import TopicRepository
 from app.schemas.topic import TopicCreate, TopicResponse, TopicUpdate
 
@@ -17,6 +19,7 @@ def list_topics(
     active_only: bool = False,
     component_id: int | None = None,
     db: Session = Depends(get_db),
+    _: AuthUser = Depends(get_current_user),
 ) -> list[Topic]:
     repo = TopicRepository(db)
     if component_id is not None:
@@ -35,6 +38,7 @@ def list_topics(
 def get_topic(
     topic_id: int,
     db: Session = Depends(get_db),
+    _: AuthUser = Depends(get_current_user),
 ) -> Topic:
     entity = TopicRepository(db).get_by_id(topic_id)
     if entity is None:
@@ -46,6 +50,7 @@ def get_topic(
 def create_topic(
     payload: TopicCreate,
     db: Session = Depends(get_db),
+    _: AuthUser = Depends(require_roles(UserRole.ADMIN)),
 ) -> Topic:
     repo = TopicRepository(db)
     entity = Topic(**payload.model_dump())
@@ -60,6 +65,7 @@ def update_topic(
     topic_id: int,
     payload: TopicUpdate,
     db: Session = Depends(get_db),
+    _: AuthUser = Depends(require_roles(UserRole.ADMIN)),
 ) -> Topic:
     repo = TopicRepository(db)
     entity = repo.get_by_id(topic_id)
@@ -75,6 +81,7 @@ def update_topic(
 def delete_topic(
     topic_id: int,
     db: Session = Depends(get_db),
+    _: AuthUser = Depends(require_roles(UserRole.ADMIN)),
 ) -> Response:
     repo = TopicRepository(db)
     if not repo.delete_by_id(topic_id):

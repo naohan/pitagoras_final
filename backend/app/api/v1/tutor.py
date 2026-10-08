@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.agents.exceptions import TutorError
 from app.agents.tutor_service import TutorExplanation, TutorService
-from app.core.dependencies import get_db, get_optional_student_id
+from app.core.dependencies import get_current_student_id, get_db
 from app.schemas.tutor import (
     AcademicContextResponse,
     RAGSourceResponse,
@@ -56,7 +56,7 @@ def _to_response(result: TutorExplanation) -> TutorExplainResponse:
 def explain_question(
     payload: TutorExplainRequest,
     service: TutorService = Depends(get_tutor_service),
-    student_id: int | None = Depends(get_optional_student_id),
+    student_id: int = Depends(get_current_student_id),
 ) -> TutorExplainResponse:
     try:
         result = service.explain(
@@ -79,7 +79,7 @@ def explain_question(
 def hint_question(
     payload: TutorExplainRequest,
     service: TutorService = Depends(get_tutor_service),
-    student_id: int | None = Depends(get_optional_student_id),
+    student_id: int = Depends(get_current_student_id),
 ) -> TutorExplainResponse:
     try:
         result = service.hint(
